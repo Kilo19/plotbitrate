@@ -28,6 +28,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
+import os
 import sys
 import shutil
 import argparse
@@ -47,10 +48,13 @@ except ImportError:
     sys.stderr.write("Error: Missing package 'python3-matplotlib'\n")
     sys.exit(1)
 
-# check for ffprobe in path
-if not shutil.which("ffprobe"):
-    sys.stderr.write("Error: Missing ffprobe from package 'ffmpeg'\n")
-    sys.exit(1)
+scriptDir = os.path.dirname(os.path.realpath(sys.argv[0]))
+libDir = os.path.join(scriptDir, 'Program')
+os.chdir(libDir)
+#path relative to scriptpath\Program
+ffmpeg_dir = 'ffmpeg-3.3.1-win64-shared'
+ffmpeg_exec = os.path.join(ffmpeg_dir, 'bin', 'ffmpeg.exe')
+ffprobe_exec = os.path.join(ffmpeg_dir, 'bin', 'ffprobe.exe')
 
 # get list of supported matplotlib formats
 format_list = list(
@@ -70,6 +74,9 @@ parser.add_argument('--min', help="set plot minimum (kbps)", type=int)
 parser.add_argument('--max', help="set plot maximum (kbps)", type=int)
 args = parser.parse_args()
 
+if not args.input or not os.path.isfile(args.input):
+	args.input = input("Drag media file here").replace('\"', '')
+
 # check if format given w/o output file
 if args.format and not args.output:
     sys.stderr.write("Error: Output format requires output file\n")
@@ -87,7 +94,8 @@ frame_time = 0.0
 
 # get frame data for the selected stream
 with subprocess.Popen(
-    ["ffprobe",
+    [ffprobe_exec,
+        "-threads", "48",
         "-show_entries", "frame",
         "-select_streams", args.stream[0],
         "-print_format", "xml",
@@ -124,7 +132,7 @@ with subprocess.Popen(
             # video frame rate, read stream header
             else:
                 with subprocess.Popen(
-                    ["ffprobe",
+                    [ffprobe_exec,
                         "-show_entries", "stream",
                         "-select_streams", "v",
                         "-print_format", "xml",
